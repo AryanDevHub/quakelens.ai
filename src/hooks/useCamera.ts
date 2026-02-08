@@ -15,40 +15,6 @@ export function useCamera(): UseCameraReturn {
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const startCamera = useCallback(async () => {
-    try {
-      setError(null);
-      
-      // Check if running on HTTPS or localhost
-      if (typeof window !== 'undefined' && 
-          window.location.protocol !== 'https:' && 
-          window.location.hostname !== 'localhost') {
-        throw new Error('Camera access requires HTTPS. Please use a secure connection.');
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
-
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsActive(true);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to access camera';
-      setError(errorMessage);
-      setIsActive(false);
-      console.error('Camera error:', err);
-    }
-  }, []);
-
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -60,6 +26,55 @@ export function useCamera(): UseCameraReturn {
     setIsActive(false);
   }, []);
 
+  const startCamera = useCallback(async () => {
+    try {
+      setError(null);
+      
+      // 1. Secure Context Check
+      if (typeof window !== 'undefined' && 
+          window.location.protocol !== 'https:' && 
+          window.location.hostname !== 'localhost') {
+        throw new Error('Camera access requires an HTTPS secure connection.');
+      }
+
+      // 2. Request Hardware Access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // BACK CAMERA
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+
+      // 3. Store stream in a Ref (not state) to prevent re-renders
+      streamRef.current = stream;
+      
+      // 4. Trigger UI to render the <video> element
+      setIsActive(true);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Hardware access denied';
+      setError(errorMessage);
+      setIsActive(false);
+      console.error('Tactical Camera Error:', err);
+    }
+  }, []);
+
+  // 5. CRITICAL: This Effect runs AFTER the component re-renders
+  // It waits for the video tag to exist in the DOM, then attaches the stream
+  useEffect(() => {
+    if (isActive && streamRef.current && videoRef.current) {
+      // Attach the existing stream to the newly rendered video tag
+      videoRef.current.srcObject = streamRef.current;
+      
+      // Force play for iOS/Android WebView compatibility
+      videoRef.current.play().catch(e => {
+        console.warn("Auto-play blocked by browser policy:", e);
+      });
+    }
+  }, [isActive]); // Runs every time the 'active' state changes
+
   const takeSnapshot = useCallback((): string | null => {
     if (!videoRef.current || !isActive) return null;
 
@@ -70,16 +85,19 @@ export function useCamera(): UseCameraReturn {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     
+    // Draw the current frame to canvas
     ctx.drawImage(videoRef.current, 0, 0);
     return canvas.toDataURL('image/jpeg', 0.8);
   }, [isActive]);
 
-  // Cleanup on unmount
+  // Cleanup: Ensure camera turns off when the user leaves the Vision tab
   useEffect(() => {
     return () => {
-      stopCamera();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [stopCamera]);
+  }, []);
 
   return {
     videoRef,

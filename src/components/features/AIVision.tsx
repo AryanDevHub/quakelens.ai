@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Camera, Scan, CheckCircle, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, Camera, Scan, RefreshCcw } from 'lucide-react';
 import { useCamera } from '@/hooks';
 import { GlassCard } from '@/components/ui/custom';
 import type { DetectionResult } from '@/types';
@@ -59,39 +59,35 @@ export const AIVision: React.FC = memo(function AIVision() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
       className="space-y-4"
     >
-      {/* Visual Header */}
       <div className="flex justify-between items-center px-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-slate-400">
           <Scan size={14} className="text-cyan-400" />
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Optical Triage</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">Optical Triage</span>
         </div>
         {isActive && (
            <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_5px_red]" />
-              <span className="text-[9px] font-mono text-red-500 font-bold uppercase">Live_NPU_Link</span>
+              <span className="text-[9px] font-mono text-red-500 font-bold uppercase tracking-tighter">Live_NPU_Link</span>
            </div>
         )}
       </div>
 
-      {/* Main Container */}
-      <div className="relative w-full h-80 bg-black rounded-[2.5rem] border-2 border-white/10 overflow-hidden shadow-2xl">
-        
-        {/* State 1: Error */}
+      <div className="relative w-full h-80 bg-black rounded-[2rem] border-2 border-white/10 overflow-hidden shadow-2xl">
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-900 z-50">
             <AlertTriangle className="text-red-500 mb-4" size={48} />
-            <p className="text-xs text-white font-mono uppercase tracking-tighter mb-4">{error}</p>
+            <p className="text-xs text-white font-mono uppercase tracking-tighter mb-4 leading-relaxed">{error}</p>
             <button onClick={startCamera} className="px-6 py-2 bg-red-500/20 border border-red-500/50 rounded-xl text-red-500 text-[10px] font-bold uppercase tracking-widest">Retry Hardware Auth</button>
           </div>
         )}
 
-        {/* State 2: Idle (No Camera) */}
         {!isActive && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-10 transition-colors">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-10">
             <Camera className="text-cyan-500 mb-4 opacity-20" size={64} />
-            <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-6">Camera_Stream_Offline</p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-6">Hardware_Link_Offline</p>
             <button
               onClick={startCamera}
               className="px-8 py-3 bg-cyan-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-cyan-500 active:scale-95 transition-all shadow-lg shadow-cyan-900/40"
@@ -101,18 +97,16 @@ export const AIVision: React.FC = memo(function AIVision() {
           </div>
         )}
 
-        {/* State 3: Active Camera Feed */}
         {isActive && (
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover opacity-80 z-0 scale-x-[-1]" // scale-x-[-1] for mirror effect if using front cam
+            className="absolute inset-0 w-full h-full object-cover opacity-80 z-0"
           />
         )}
         
-        {/* Overlay: Scanning Animation */}
         <AnimatePresence>
           {isProcessing && (
             <motion.div
@@ -125,7 +119,6 @@ export const AIVision: React.FC = memo(function AIVision() {
           )}
         </AnimatePresence>
 
-        {/* Overlay: AI Detections */}
         <AnimatePresence>
           {showResults && !isProcessing && (
             <div className="absolute inset-0 z-30">
@@ -134,49 +127,46 @@ export const AIVision: React.FC = memo(function AIVision() {
           )}
         </AnimatePresence>
 
-        {/* Tactical Badges */}
         <div className="absolute top-4 left-4 p-2 bg-black/60 rounded-lg backdrop-blur-md text-[8px] font-mono text-cyan-400 border border-cyan-500/30 z-50 uppercase tracking-widest">
-          Engine: YOLOv4.2 // Quantized_INT8
+          Engine: YOLOv8_SEG // INT8_QUANTIZED
         </div>
       </div>
 
-      {/* Action Interface */}
       <div className="flex gap-2">
         {isActive ? (
           <>
             <button
               onClick={showResults ? handleReset : startAIScan}
               disabled={isProcessing}
-              className="flex-1 py-4 rounded-3xl font-black uppercase tracking-[0.2em] bg-cyan-600 text-white shadow-xl shadow-cyan-900/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-4 rounded-[1.5rem] font-black uppercase tracking-[0.2em] bg-cyan-600 text-white shadow-xl shadow-cyan-900/20 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               {isProcessing ? <RefreshCcw className="animate-spin" size={18} /> : <Scan size={18} />}
               {isProcessing ? 'Analyzing...' : showResults ? 'Reset Scan' : 'Run AI Analysis'}
             </button>
             <button 
               onClick={stopCamera}
-              className="p-4 bg-slate-800 rounded-3xl text-slate-400 hover:text-white transition-colors border border-white/5 shadow-xl"
+              className="p-4 bg-slate-800 rounded-[1.5rem] text-slate-400 hover:text-white transition-colors border border-white/5"
             >
               <Camera size={20} />
             </button>
           </>
         ) : (
-          <GlassCard className="w-full py-4 text-center opacity-40">
+          <GlassCard className="w-full py-4 text-center opacity-40 rounded-[1.5rem]">
              <span className="text-[10px] font-black uppercase tracking-widest italic">Awaiting Hardware Activation</span>
           </GlassCard>
         )}
       </div>
 
-      {/* Result Card */}
       <AnimatePresence>
         {showResults && !isProcessing && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <GlassCard variant="danger" borderPosition="left" className="p-5 border-l-red-500">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <GlassCard variant="danger" borderPosition="left" className="p-5 border-l-red-500 rounded-2xl">
                <div className="flex items-center gap-3 mb-2">
                   <AlertTriangle className="text-red-500" size={18} />
-                  <p className="text-xs font-black text-red-500 uppercase tracking-widest leading-none">Structural Anomaly Logged</p>
+                  <p className="text-xs font-black text-red-500 uppercase tracking-widest leading-none">Anomalous Signature Logged</p>
                </div>
                <p className="text-[11px] text-slate-300 leading-relaxed italic">
-                 The Vision Engine has identified 45° Shear Cracking and Concrete Spalling. Structural Integrity Score has been downgraded to 38%. Evacuation is highly recommended.
+                 YOLOv8 Engine detected 45° Shear Cracking and Spalling. Composite Integrity Score: 38%. Structure is non-compliant with safety baselines.
                </p>
             </GlassCard>
           </motion.div>
